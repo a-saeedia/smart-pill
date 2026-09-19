@@ -20,7 +20,7 @@ async function main(): Promise<void> {
 
   const server = new McpServer({
     name: "smart-pill",
-    version: "0.3.0",
+    version: "0.4.0",
   });
 
   server.registerTool(
@@ -170,7 +170,7 @@ async function main(): Promise<void> {
     {
       title: "Recall a fact",
       description:
-        "Search the smart-pill memory KV store and return ranked hits for the topic: exact key match > key prefix > key substring > value contains. Query before asking the model to re-read anything.",
+        "Search the smart-pill memory KV store and return ranked hits for the topic: exact key match > key prefix > key substring > value contains > semantic similarity (offline all-MiniLM-L6-v2 embeddings). Semantic tier catches paraphrases lexical matching misses. Query before asking the model to re-read anything.",
       inputSchema: {
         topic: z.string().min(1).describe("Topic to match against fact keys and values"),
         limit: z.number().int().positive().max(50).optional().describe("Max hits (default 10)"),
@@ -178,7 +178,7 @@ async function main(): Promise<void> {
     },
     async ({ topic, limit }) => {
       const data = await store.read();
-      const hits = searchMemory(data, topic, limit ?? 10);
+      const hits = await searchMemory(data, topic, limit ?? 10);
       const text =
         hits.length === 0
           ? `No facts match "${topic}".`
@@ -287,7 +287,7 @@ async function main(): Promise<void> {
     },
     async ({ topic, limit }) => {
       const data = await store.read();
-      const hits = searchMemory(data, topic ?? "", limit ?? 8, 600);
+      const hits = await searchMemory(data, topic ?? "", limit ?? 8, 600);
       const { events, totalSavedTokens } = await ledger.report();
       const byTool = new Map<string, number>();
       for (const e of events) byTool.set(e.tool, (byTool.get(e.tool) ?? 0) + 1);

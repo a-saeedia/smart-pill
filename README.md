@@ -10,7 +10,7 @@ eight cheap, offline-first tools:
 | Tool | What it does |
 |---|---|
 | `pill_digest` | Compresses a repo/session dump into a small working set (extractive; optional LLM summary when `OPENROUTER_API_KEY` is set). |
-| `pill_remember` / `pill_recall` | Tiny JSON KV memory (`SMART_PILL_HOME`, default `~/.smart-pill`). Facts learned once are never re-absorbed. |
+| `pill_remember` / `pill_recall` | Tiny JSON KV memory (`SMART_PILL_HOME`, default `~/.smart-pill`) with offline semantic recall (all-MiniLM-L6-v2). Facts learned once are never re-absorbed. |
 | `pill_plan` | Forces a 5-phase plan before code: Understand → Locate → Implement → Verify → Harden. |
 | `pill_review` | Deterministic smell scan: hardcoded secrets, `eval`/`exec`, TODO/FIXME, base64 blobs, `node_modules` references. |
 | `pill_ledger` | The number that sells the story: **tokens saved** so far this session/project. |
@@ -34,6 +34,7 @@ pill_remember(facts) → persist for next time
 ```bash
 npm install
 npm run build
+npm run model:fetch   # one-time offline embedding model cache
 npm run smoke
 ```
 
