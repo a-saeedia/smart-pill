@@ -1,6 +1,6 @@
 {
   "name": "smart-pill",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server that smarts up free opencode models: context digesting, persistent memory, plan-first discipline, self-review, token ledger, big-model escalation.",
   "type": "module",
   "private": true,

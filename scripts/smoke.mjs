@@ -1,4 +1,4 @@
-// smart-pill smoke test: MCP handshake + offline round-trip of all six tools.
+// smart-pill smoke test: MCP handshake + offline round-trip of all eight tools.
 // Uses a throwaway SMART_PILL_HOME and blanks OPENROUTER_API_KEY so it is fully offline.
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -95,14 +95,21 @@ try {
 
   const tools = await rpc("tools/list");
   const names = (tools.tools ?? []).map((t) => t.name);
-  for (const want of ["pill_digest", "pill_remember", "pill_recall", "pill_plan", "pill_review", "pill_ledger", "pill_route"]) {
+  for (const want of ["pill_digest", "pill_remember", "pill_recall", "pill_plan", "pill_review", "pill_ledger", "pill_context", "pill_route"]) {
     assert(names.includes(want), `tools/list includes ${want}`);
   }
 
   await callTool("pill_plan", { goal: "Port hello world to TypeScript" }, "PHASES");
   await callTool("pill_digest", { text: "line of context\n".repeat(2000) }, "<<<TAIL");
+  await callTool(
+    "pill_digest",
+    { text: "apollo mission checklist alpha\n" + "noise line\n".repeat(400), focus: "apollo" },
+    "apollo",
+  );
   await callTool("pill_remember", { entries: [{ key: "smoke.test", value: "ok" }] }, "Remembered 1");
-  await callTool("pill_recall", { topic: "smoke" }, "smoke.test: ok");
+  await callTool("pill_remember", { entries: [{ key: "note.smoke.stale", value: "old" }] }, "Remembered 1");
+  await callTool("pill_recall", { topic: "smoke" }, "2 hit(s)");
+  await callTool("pill_context", { topic: "smoke" }, "SMART-PILL BRIEFING");
   await callTool(
     "pill_review",
     { files: [{ path: "a.ts", content: "const api_key = 'abcdef123456';\n" }] },
@@ -112,7 +119,7 @@ try {
   await callTool("pill_route", { prompt: "hi" }, "OPENROUTER_API_KEY");
 
   child.kill();
-  console.log("SMOKE PASS: handshake ok; all 7 tools round-tripped offline");
+  console.log("SMOKE PASS: handshake ok; all 8 tools round-tripped offline");
   process.exit(0);
 } catch (err) {
   child.kill();

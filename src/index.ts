@@ -5,6 +5,7 @@ import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { KVStore } from "./store.js";
 import { extractiveDigest } from "./digest.js";
+import { searchMemory } from "./search.js";
 import { buildPlan } from "./plan.js";
 import { reviewText } from "./review.js";
 import { Ledger } from "./ledger.js";
@@ -19,7 +20,7 @@ async function main(): Promise<void> {
 
   const server = new McpServer({
     name: "smart-pill",
-    version: "0.1.0",
+    version: "0.2.0",
   });
 
   server.registerTool(
@@ -41,9 +42,13 @@ async function main(): Promise<void> {
           .enum(["context", "summarize"])
           .optional()
           .describe("context=extractive working set; summarize=LLM summary when a key is present"),
+        focus: z
+          .string()
+          .optional()
+          .describe("Bias the extractive digest toward lines containing this term (e.g. the task about to start)"),
       },
     },
-    async ({ text, maxChars, task }) => {
+    async ({ text, maxChars, task, focus }) => {
       const max = maxChars ?? 3000;
       if (task === "summarize" && config.openRouterKey) {
         const res = await chatCompletion(
@@ -72,7 +77,7 @@ async function main(): Promise<void> {
         }
         // fall through to offline digest on failure
       }
-      const d = extractiveDigest(text, max);
+      const d = extractiveDigest(text, max, focus);
       await ledger.add({
         tool: "pill_digest",
         inputTokens: d.estInputTokens,
@@ -131,20 +136,21 @@ async function main(): Promise<void> {
     {
       title: "Recall a fact",
       description:
-        "Search the smart-pill memory KV store for keys containing the topic and return their values. Query before asking the model to re-read anything.",
+        "Search the smart-pill memory KV store and return ranked hits for the topic: exact key match > key prefix > key substring > value contains. Query before asking the model to re-read anything.",
       inputSchema: {
-        topic: z.string().min(1).describe("Substring to match against fact keys"),
+        topic: z.string().min(1).describe("Topic to match against fact keys and values"),
+        limit: z.number().int().positive().max(50).optional().describe("Max hits (default 10)"),
       },
     },
-    async ({ topic }) => {
+    async ({ topic, limit }) => {
       const data = await store.read();
-      const hits = Object.entries(data).filter(([k]) => k.includes(topic));
+      const hits = searchMemory(data, topic, limit ?? 10);
       const text =
         hits.length === 0
           ? `No facts match "${topic}".`
-          : hits
-              .map(([k, v]) => `- ${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
-              .join("\n");
+          : [`${hits.length} hit(s) for "${topic}":`, ...hits.map((h) => `- ${h.key}: ${h.value}`)].join(
+              "\n",
+            );
       return { content: [{ type: "text" as const, text }] };
     },
   );
@@ -230,6 +236,62 @@ async function main(): Promise<void> {
                     `- ${e.ts.slice(0, 19).replace("T", " ")} ${e.tool} saved~${e.savedTokens} (in ${e.inputTokens}) — ${e.note}`,
                 ),
             ].join("\n");
+      return { content: [{ type: "text" as const, text }] };
+    },
+  );
+
+  server.registerTool(
+    "pill_context",
+    {
+      title: "Session briefing",
+      description:
+        "Assemble a whole-session briefing before starting work — persistent memory, token ledger, routing status, and the discipline rails — so the model starts a session already thinking like a smart one.",
+      inputSchema: {
+        topic: z.string().optional().describe("Optional topic to bias recalled memory toward"),
+        limit: z.number().int().positive().max(50).optional().describe("Max memory hits (default 8)"),
+      },
+    },
+    async ({ topic, limit }) => {
+      const data = await store.read();
+      const hits = searchMemory(data, topic ?? "", limit ?? 8, 600);
+      const { events, totalSavedTokens } = await ledger.report();
+      const byTool = new Map<string, number>();
+      for (const e of events) byTool.set(e.tool, (byTool.get(e.tool) ?? 0) + 1);
+      const topTools = [...byTool.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+      const routeLine = config.openRouterKey
+        ? `ARMED — escalations via ${config.routeModel}`
+        : "OFFLINE ADVISORY — no OPENROUTER_API_KEY (pill_route returns self-service prompts)";
+      const text = [
+        "<<<SMART-PILL BRIEFING>>>",
+        ...(topic ? [`topic: ${topic}`] : []),
+        "",
+        `<<<MEMORY (${hits.length} hit(s))>>>`,
+        ...(hits.length === 0 ? ["(empty)"] : hits.map((h) => `- ${h.key}: ${h.value}`)),
+        "",
+        "<<<LEDGER>>>",
+        `TOTAL EST. TOKENS SAVED: ${totalSavedTokens}`,
+        ...(topTools.length === 0
+          ? ["(no activity yet)"]
+          : topTools.map(([tool, n]) => `- ${tool}: ${n} use(s)`)),
+        "",
+        "<<<ROUTING>>>",
+        routeLine,
+        "",
+        "<<<DISCIPLINE>>>",
+        "1) plan first (pill_plan) — never touch code without a VERIFY step",
+        "2) digest before you re-read (pill_digest) — don't re-absorb known context",
+        "3) scan before done (pill_review) — smells, secrets, drift",
+        "4) persist what you learned (pill_remember) — pay the memory forward",
+        "5) escalate the hard 10% (pill_route) — don't burn turns on your ceiling",
+        "",
+        `[home ${config.homeDir}]`,
+      ].join("\n");
+      await ledger.add({
+        tool: "pill_context",
+        inputTokens: estimateTokens(topic ?? ""),
+        savedTokens: 0,
+        note: "briefing assembled",
+      });
       return { content: [{ type: "text" as const, text }] };
     },
   );

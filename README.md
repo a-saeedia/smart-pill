@@ -5,7 +5,7 @@
 
 Free models don't waste tokens on *output*. They waste them on *context*: every
 turn they re-read the world. smart-pill is an MCP server that fixes that with
-six cheap, offline-first tools:
+eight cheap, offline-first tools:
 
 | Tool | What it does |
 |---|---|
@@ -14,13 +14,14 @@ six cheap, offline-first tools:
 | `pill_plan` | Forces a 5-phase plan before code: Understand → Locate → Implement → Verify → Harden. |
 | `pill_review` | Deterministic smell scan: hardcoded secrets, `eval`/`exec`, TODO/FIXME, base64 blobs, `node_modules` references. |
 | `pill_ledger` | The number that sells the story: **tokens saved** so far this session/project. |
+| `pill_context` | One-call session briefing before you start: ranked memory + token ledger + routing status + the discipline rails. |
 | `pill_route` | Escalates the hard 10% to a big model via OpenRouter (default `anthropic/claude-3.7-sonnet`). Advisory mode when no key. |
 
 ## One-turn recipe
 
 ```
-pill_recall(topic)   → what we already know
-pill_digest(cwd)     → compressed context
+pill_context(topic)  → session briefing (memory + ledger + rails)
+pill_digest(cwd, focus: goal) → compressed context biased to the task
 pill_plan(goal)      → the rails
 [model does the work]
 pill_review(changes) → self-check
