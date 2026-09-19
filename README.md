@@ -60,6 +60,19 @@ Wire into `opencode.jsonc`:
 | `SMART_PILL_DIGEST_MODEL` | `anthropic/claude-3.5-haiku` | LLM digest model |
 | `OPENROUTER_API_KEY` | — | Enables `pill_route` + LLM digests |
 
+## Hardening (0.3.0)
+
+- **Concurrency-safe writes**: memory store serializes read-modify-write through
+  a per-file mutex, so parallel `pill_remember` calls never lose a fact.
+- **Bounded memory**: keys capped at 200 chars, values at 8000 (truncated with a
+  warning), store capped at 500 entries (smallest entries evicted, reported).
+- **Budget-compliant digest**: `maxChars` is now a hard upper bound on output,
+  even for tiny budgets; separator-only and near-duplicate lines no longer eat
+  the head budget.
+- **Behavioral smoke tests**: ranking order (exact > prefix > substring > value),
+  caps, digest budget, eviction, ledger totals, and a 10-way concurrent-write
+  race are all asserted, not just round-tripped.
+
 ## Honest limits
 
 - Token figures are heuristics (ASCII/4 + non-ASCII), not billing-grade.

@@ -20,7 +20,7 @@ async function main(): Promise<void> {
 
   const server = new McpServer({
     name: "smart-pill",
-    version: "0.2.0",
+    version: "0.3.0",
   });
 
   server.registerTool(
@@ -109,22 +109,56 @@ async function main(): Promise<void> {
       },
     },
     async ({ entries }) => {
-      const data = await store.read();
-      for (const e of entries) data[e.key] = e.value;
-      await store.write(data);
-      const avoided = entries.reduce((n, e) => n + estimateTokens(e.value), 0);
+      const MAX_KEY = 200;
+      const MAX_VALUE = 8000;
+      const MAX_ENTRIES = 500;
+      const sizeOf = (v: unknown): number =>
+        typeof v === "string" ? v.length : JSON.stringify(v).length;
+
+      const stored = entries.map((e) => ({
+        key: e.key.slice(0, MAX_KEY),
+        value: e.value.slice(0, MAX_VALUE),
+      }));
+      const truncatedKeys = entries.filter((e, i) => stored[i].key !== e.key).length;
+      const truncatedValues = entries.filter((e, i) => stored[i].value !== e.value).length;
+
+      let evicted = 0;
+      await store.update((d) => {
+        for (const s of stored) d[s.key] = s.value;
+        const keys = Object.keys(d);
+        if (keys.length > MAX_ENTRIES) {
+          keys.sort((a, b) => sizeOf(d[a]) - sizeOf(d[b]));
+          let n = keys.length;
+          for (const k of keys) {
+            if (n <= MAX_ENTRIES) break;
+            delete d[k];
+            n--;
+            evicted++;
+          }
+        }
+        return d;
+      });
+
+      const avoided = stored.reduce((n, s) => n + estimateTokens(s.value), 0);
       await ledger.add({
         tool: "pill_remember",
         inputTokens: 0,
         savedTokens: avoided,
-        note: `persisted ${entries.length} fact(s) — future recalls avoid re-reading ~${avoided} tokens`,
+        note: `persisted ${stored.length} fact(s) — future recalls avoid re-reading ~${avoided} tokens`,
       });
-      const keys = entries.map((e) => e.key).join(", ").slice(0, 500);
+
+      const warnings: string[] = [];
+      if (truncatedKeys > 0) warnings.push(`${truncatedKeys} key(s) truncated to ${MAX_KEY} chars`);
+      if (truncatedValues > 0) warnings.push(`${truncatedValues} value(s) truncated to ${MAX_VALUE} chars`);
+      if (evicted > 0) warnings.push(`${evicted} entry(s) evicted at ${MAX_ENTRIES} cap`);
+
+      const keys = stored.map((s) => s.key).join(", ").slice(0, 500);
+      const warnLine = warnings.length > 0 ? `\nNote: ${warnings.join("; ")}.` : "";
       return {
         content: [
           {
             type: "text" as const,
-            text: `Remembered ${entries.length} fact(s): ${keys}\nStore: ${config.storeFile}`,
+            text: `Remembered ${stored.length} fact(s): ${keys}\nStore: ${config.storeFile}${warnLine}`,
           },
         ],
       };

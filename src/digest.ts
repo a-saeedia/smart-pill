@@ -33,15 +33,39 @@ export interface DigestResult {
  * highest-scoring head lines within budget, ordered as they appeared.
  * Pass `focus` to bias the head toward lines about that term.
  */
+/** Normalized form for dedupe: lowercase, collapse whitespace, strip trailing punctuation. */
+function normalizeForDedupe(line: string): string {
+  return line
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.,;:!?)\]}]+$/g, "");
+}
+
 export function extractiveDigest(text: string, maxChars = 3000, focus?: string): DigestResult {
   const inputChars = text.length;
-  const tail = text.slice(Math.max(0, text.length - TAIL_BUDGET));
-  const headSource = text.slice(0, Math.max(0, text.length - TAIL_BUDGET));
+  // Budget compliance: shrink the tail when maxChars is too small to keep the
+  // full TAIL_BUDGET, so output never exceeds maxChars (markers included).
+  const tailBudget = Math.min(TAIL_BUDGET, Math.max(0, maxChars - OVERHEAD));
+  const tail = text.slice(Math.max(0, text.length - tailBudget));
+  const headSource = text.slice(0, Math.max(0, text.length - tailBudget));
   const lines = headSource.split("\n");
 
-  const headBudget = Math.max(0, maxChars - TAIL_BUDGET - OVERHEAD);
+  const headBudget = Math.max(0, maxChars - tailBudget - OVERHEAD);
+  const seen = new Set<string>();
   const candidates = lines
-    .map((line, i) => ({ line, i, score: scoreLine(line, focus) }))
+    .map((line, i) => ({ line, i }))
+    .filter(({ line }) => {
+      const trimmed = line.trim();
+      if (!trimmed) return false; // blank
+      if (/^[\s\-=_*~.,:;!|#<>()\[\]{}"'`]+$/.test(trimmed)) return false; // separator-only
+      const norm = normalizeForDedupe(line);
+      if (!norm) return false;
+      if (seen.has(norm)) return false; // near-duplicate: keep only the first occurrence
+      seen.add(norm);
+      return true;
+    })
+    .map(({ line, i }) => ({ line, i, score: scoreLine(line, focus) }))
     .sort((a, b) => b.score - a.score);
 
   const chosen = new Set<number>();
