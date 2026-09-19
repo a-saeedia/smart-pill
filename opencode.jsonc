@@ -1,0 +1,10 @@
+{
+  // smart-pill MCP server wiring for opencode
+  "mcp": {
+    "smart-pill": {
+      "type": "local",
+      "command": ["node", "C:\\Users\\User\\Desktop\\system admin\\smart-pill\\dist\\index.js"],
+      "enabled": true
+    }
+  }
+}
