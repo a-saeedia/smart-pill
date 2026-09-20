@@ -1,0 +1,12 @@
+{
+  "name": "smart-pill",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+    }
+  },
+  "forwardPorts": [4096],
+  "postCreateCommand": "npm install && npm run build && npm run model:fetch"
+}

@@ -13,11 +13,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - name: Install deps
-        run: npm install
+        run: npm ci
       - name: Typecheck
-        run: npx tsc --noEmit
-      - name: Test
-        run: npx vitest run
+        run: npm run typecheck
+      - name: Test with coverage
+        run: npm run test:coverage
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: false
+      - name: Lint
+        run: npm run lint
       - name: Build
         run: npm run build

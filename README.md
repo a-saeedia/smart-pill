@@ -1,11 +1,18 @@
 # smart-pill
 
-**Give free opencode models a pill — small-model output at ~big-model quality,
-~zero cost. Claude users see exactly how many tokens they didn't waste.**
+> **Give free opencode models a pill — small-model output at ~big-model quality, ~zero cost.**
+> Claude users see exactly how many tokens they didn't waste.
 
-Free models don't waste tokens on *output*. They waste them on *context*: every
-turn they re-read the world. smart-pill is an MCP server that fixes that with
-eight cheap, offline-first tools:
+[![CI](https://github.com/smart-pill/smart-pill/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/smart-pill/smart-pill/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/smart-pill.svg)](https://www.npmjs.com/package/smart-pill)
+[![Node.js 22](https://img.shields.io/badge/Node-22-brightgreen.svg)](https://nodejs.org/)
+[![Coverage](https://codecov.io/gh/smart-pill/smart-pill/branch/main/graph/badge.svg)](https://codecov.io/gh/smart-pill/smart-pill)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+---
+
+Free models don't waste tokens on *output*. They waste them on *context*: every turn they re-read the world. **smart-pill** is an MCP server that fixes that with eight cheap, offline-first tools:
 
 | Tool | What it does |
 |---|---|
@@ -36,6 +43,7 @@ npm install
 npm run build
 npm run model:fetch   # one-time offline embedding model cache
 npm run smoke
+npm test              # vitest suite (38 tests)
 ```
 
 Wire into `opencode.jsonc`:
@@ -45,7 +53,7 @@ Wire into `opencode.jsonc`:
   "mcp": {
     "smart-pill": {
       "type": "local",
-      "command": ["node", "C:\\path\\to\\smart-pill\\dist\\index.js"],
+      "command": ["node", "C:\\\\path\\\\to\\\\smart-pill\\\\dist\\\\index.js"],
       "enabled": true
     }
   }
@@ -59,24 +67,37 @@ Wire into `opencode.jsonc`:
 | `SMART_PILL_HOME` | `~/.smart-pill` | Memory store + ledger location |
 | `SMART_PILL_ROUTE_MODEL` | `anthropic/claude-3.7-sonnet` | Escalation model for `pill_route` |
 | `SMART_PILL_DIGEST_MODEL` | `anthropic/claude-3.5-haiku` | LLM digest model |
+| `SMART_PILL_ROUTE_THRESHOLD` | `40` | Escalation score threshold (0–100) |
 | `OPENROUTER_API_KEY` | — | Enables `pill_route` + LLM digests |
 
-## Hardening (0.3.0)
+## Hardening (0.5.0)
 
-- **Concurrency-safe writes**: memory store serializes read-modify-write through
-  a per-file mutex, so parallel `pill_remember` calls never lose a fact.
-- **Bounded memory**: keys capped at 200 chars, values at 8000 (truncated with a
-  warning), store capped at 500 entries (smallest entries evicted, reported).
-- **Budget-compliant digest**: `maxChars` is now a hard upper bound on output,
-  even for tiny budgets; separator-only and near-duplicate lines no longer eat
-  the head budget.
-- **Behavioral smoke tests**: ranking order (exact > prefix > substring > value),
-  caps, digest budget, eviction, ledger totals, and a 10-way concurrent-write
-  race are all asserted, not just round-tripped.
+- **Concurrency-safe writes**: memory store serializes read-modify-write through a per-file promise queue, so parallel `pill_remember` calls never lose a fact.
+- **Bounded memory**: keys capped at 200 chars, values at 8000 (truncated with a warning), store capped at 500 entries (smallest entries evicted, reported).
+- **Budget-compliant digest**: `maxChars` is now a hard upper bound on output, even for tiny budgets.
+- **Escalation heuristic**: `pill_route` scores every prompt offline before spending a big-model call. Skips if score < threshold (saves tokens). Pass `force:true` to override.
+- **38-unit tests**, CI on every push/PR, coverage tracking.
+
+## How to promote
+
+If you want to promote this project, here's what works:
+
+1. **GitHub Stars** — Star the repo, it signals adoption to the opencode community.
+2. **Open in DevContainers** — Add a `.devcontainer/devcontainer.json` so anyone can clone and run instantly.
+3. **Publish to npm** — `npm publish --access public` makes it discoverable.
+4. **Write a blog post** — The token-saving angle ("how many tokens didn't you waste?") is a compelling hook for AI-dev Twitter/X, Dev.to, and Hashnode.
+5. **Demonstrate the ledger** — Screenshots of `pill_ledger()` showing token savings are the single best conversion tool. The number sells itself.
+6. **Opencode marketplace** — Submit the MCP server to the opencode ecosystem.
+7. **Contributing** — `CONTRIBUTING.md` is ready; good first issues are tagged.
 
 ## Honest limits
 
 - Token figures are heuristics (ASCII/4 + non-ASCII), not billing-grade.
 - Extractive digest is approximate; LLM digest needs a key.
-- A pill is a discipline layer — it stops a model wasting its ceiling on
-  noise, it cannot raise the ceiling itself.
+- A pill is a discipline layer — it stops a model wasting its ceiling on noise, it cannot raise the ceiling itself.
+
+---
+
+<p align="center">
+  <sub>Built for developers who watch their token budget like a hawk.</sub>
+</p>
