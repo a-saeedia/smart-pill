@@ -1,5 +1,5 @@
 export interface ChatMessage {
-  role: "system" | "user" | "assistant";
+  role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
@@ -13,11 +13,10 @@ export interface RouteOptions {
 }
 
 /** Default escalation endpoint; overridable via SMART_PILL_ROUTE_URL. */
-export const DEFAULT_ROUTE_URL = "https://openrouter.ai/api/v1/chat/completions";
+export const DEFAULT_ROUTE_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export type RouteResult =
-  | { ok: true; content: string; model: string }
-  | { ok: false; error: string };
+  { ok: true; content: string; model: string } | { ok: false; error: string };
 
 /** Minimal OpenAI-compatible client for OpenRouter escalation. */
 export async function chatCompletion(
@@ -28,9 +27,9 @@ export async function chatCompletion(
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 60_000);
   try {
     const res = await fetch(opts.url ?? DEFAULT_ROUTE_URL, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${opts.apiKey}`,
       },
       body: JSON.stringify({
@@ -49,11 +48,11 @@ export async function chatCompletion(
       model?: string;
     };
     const content = data.choices?.[0]?.message?.content;
-    if (!content) return { ok: false, error: "OpenRouter returned no content" };
+    if (!content) return { ok: false, error: 'OpenRouter returned no content' };
     return { ok: true, content, model: data.model ?? opts.model };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg.includes("abort") ? "request timed out" : msg };
+    return { ok: false, error: msg.includes('abort') ? 'request timed out' : msg };
   } finally {
     clearTimeout(timer);
   }

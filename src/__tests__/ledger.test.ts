@@ -6,14 +6,23 @@ import { unlinkSync } from 'node:fs';
 const tmpFile = `${__dirname}/../.tmp-test-ledger.json`;
 
 afterEach(async () => {
-  try { unlinkSync(tmpFile); } catch { /* ignore */ }
+  try {
+    unlinkSync(tmpFile);
+  } catch {
+    /* ignore */
+  }
 });
 
 describe('Ledger', () => {
   it('add() returns event with ts', async () => {
     const store = new KVStore(tmpFile);
     const ledger = new Ledger(store);
-    const event = await ledger.add({ tool: 'test', inputTokens: 100, savedTokens: 50, note: 'test' });
+    const event = await ledger.add({
+      tool: 'test',
+      inputTokens: 100,
+      savedTokens: 50,
+      note: 'test',
+    });
     expect(event.ts).toBeTruthy();
     expect(event.tool).toBe('test');
   });

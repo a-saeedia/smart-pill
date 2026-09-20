@@ -13,7 +13,7 @@ import {
   cosine,
   EMBED_MAX_CHARS,
   EMBED_MAX_CANDIDATES,
-} from "./embed.js";
+} from './embed.js';
 
 export interface MemoryHit {
   key: string;
@@ -34,7 +34,7 @@ export async function searchMemory(
   let bestLex = 0;
 
   for (const [key, raw] of Object.entries(data)) {
-    const value = typeof raw === "string" ? raw : JSON.stringify(raw);
+    const value = typeof raw === 'string' ? raw : JSON.stringify(raw);
     const k = key.toLowerCase();
     const v = value.toLowerCase();
     // Defense-in-depth: write-side caps exist (pill_remember: key 200 / value 8000);

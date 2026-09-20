@@ -5,7 +5,11 @@ import { unlinkSync } from 'node:fs';
 const tmpFile = `${__dirname}/../.tmp-test-store.json`;
 
 afterEach(async () => {
-  try { unlinkSync(tmpFile); } catch { /* ignore */ }
+  try {
+    unlinkSync(tmpFile);
+  } catch {
+    /* ignore */
+  }
 });
 
 describe('KVStore', () => {
@@ -25,7 +29,10 @@ describe('KVStore', () => {
   it('update() with mutator returns updated data', async () => {
     const store = new KVStore(tmpFile);
     await store.write({ count: 0 });
-    const result = await store.update((data: Record<string, unknown>) => ({ ...data, count: (data.count as number) + 1 }));
+    const result = await store.update((data: Record<string, unknown>) => ({
+      ...data,
+      count: (data.count as number) + 1,
+    }));
     expect(result.count).toBe(1);
     const readBack = await store.read();
     expect(readBack.count).toBe(1);

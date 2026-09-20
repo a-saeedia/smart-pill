@@ -2,36 +2,36 @@ export interface ReviewFinding {
   path: string;
   line: number;
   code: string;
-  severity: "high" | "medium" | "low";
+  severity: 'high' | 'medium' | 'low';
   note: string;
 }
 
 interface Rule {
-  severity: ReviewFinding["severity"];
+  severity: ReviewFinding['severity'];
   pattern: RegExp;
   note: string;
 }
 
 const RULES: Rule[] = [
   {
-    severity: "high",
+    severity: 'high',
     pattern: /(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*['"][^'"]{6,}['"]/i,
-    note: "Possible hardcoded secret",
+    note: 'Possible hardcoded secret',
   },
-  { severity: "medium", pattern: /\beval\s*\(/, note: "eval() — code injection risk" },
-  { severity: "medium", pattern: /\bexec\s*\(/, note: "exec() — command injection risk" },
-  { severity: "low", pattern: /\b(TODO|FIXME|HACK)\b/, note: "Unfinished marker left in code" },
+  { severity: 'medium', pattern: /\beval\s*\(/, note: 'eval() — code injection risk' },
+  { severity: 'medium', pattern: /\bexec\s*\(/, note: 'exec() — command injection risk' },
+  { severity: 'low', pattern: /\b(TODO|FIXME|HACK)\b/, note: 'Unfinished marker left in code' },
   {
-    severity: "medium",
+    severity: 'medium',
     pattern: /(?:[A-Za-z0-9+/]{60,}={0,2})/,
-    note: "Suspicious base64 blob",
+    note: 'Suspicious base64 blob',
   },
-  { severity: "low", pattern: /node_modules/, note: "node_modules path referenced in code" },
+  { severity: 'low', pattern: /node_modules/, note: 'node_modules path referenced in code' },
 ];
 
 export function reviewText(path: string, content: string): ReviewFinding[] {
   const findings: ReviewFinding[] = [];
-  const lines = content.split("\n");
+  const lines = content.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     for (const rule of RULES) {

@@ -9,11 +9,7 @@
  * process.
  */
 
-import {
-  env,
-  pipeline,
-  type FeatureExtractionPipeline,
-} from "@huggingface/transformers";
+import { env, pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
 
 /** Below this cosine similarity a hit is noise, not meaning. */
 export const SEM_THRESHOLD = 0.3;
@@ -27,7 +23,7 @@ export const EMBED_MAX_CHARS = 512;
 /** Above this many lexical misses the embedding pass is skipped (>250 gets slow). */
 export const EMBED_MAX_CANDIDATES = 250;
 
-const MODEL = "Xenova/all-MiniLM-L6-v2";
+const MODEL = 'Xenova/all-MiniLM-L6-v2';
 
 /** Never phone home: recall must work (or degrade) fully offline. */
 env.allowRemoteModels = false;
@@ -38,7 +34,7 @@ let embedFailed = false;
 function loadExtractor(): Promise<FeatureExtractionPipeline | null> {
   if (embedFailed) return Promise.resolve(null);
   if (!extractorPromise) {
-    extractorPromise = pipeline("feature-extraction", MODEL)
+    extractorPromise = pipeline('feature-extraction', MODEL)
       .then((p) => p as unknown as FeatureExtractionPipeline)
       .catch((err: unknown) => {
         embedFailed = true;
@@ -71,7 +67,7 @@ export async function embedTexts(texts: string[]): Promise<EmbeddedText[] | null
   const extractor = await loadExtractor();
   if (!extractor) return null;
   try {
-    const out = await extractor(texts, { pooling: "mean", normalize: true });
+    const out = await extractor(texts, { pooling: 'mean', normalize: true });
     const data = out.data as Float32Array;
     const dims = Array.isArray(out.dims) ? (out.dims as number[]) : undefined;
     const dim = (dims && dims[dims.length - 1]) || 384;

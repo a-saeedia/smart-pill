@@ -1,4 +1,4 @@
-import { estimateTokens } from "./tokens.js";
+import { estimateTokens } from './tokens.js';
 
 const TAIL_BUDGET = 600; // always keep the freshest context
 const OVERHEAD = 120; // markers + separators
@@ -9,7 +9,9 @@ function scoreLine(line: string, focus?: string): number {
   if (!trimmed) return 0;
   let score = 0;
   if (
-    /^(#|\/\/|\/\*|\*|import |export |function |class |const |let |interface |type |def |async )/.test(trimmed)
+    /^(#|\/\/|\/\*|\*|import |export |function |class |const |let |interface |type |def |async )/.test(
+      trimmed,
+    )
   ) {
     score += 2;
   }
@@ -38,8 +40,8 @@ function normalizeForDedupe(line: string): string {
   return line
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/[.,;:!?)\]}]+$/g, "");
+    .replace(/\s+/g, ' ')
+    .replace(/[.,;:!?)\]}]+$/g, '');
 }
 
 export function extractiveDigest(text: string, maxChars = 3000, focus?: string): DigestResult {
@@ -49,7 +51,7 @@ export function extractiveDigest(text: string, maxChars = 3000, focus?: string):
   const tailBudget = Math.min(TAIL_BUDGET, Math.max(0, maxChars - OVERHEAD));
   const tail = text.slice(Math.max(0, text.length - tailBudget));
   const headSource = text.slice(0, Math.max(0, text.length - tailBudget));
-  const lines = headSource.split("\n");
+  const lines = headSource.split('\n');
 
   const headBudget = Math.max(0, maxChars - tailBudget - OVERHEAD);
   const seen = new Set<string>();
@@ -77,7 +79,7 @@ export function extractiveDigest(text: string, maxChars = 3000, focus?: string):
     }
   }
 
-  const head = lines.filter((_, i) => chosen.has(i)).join("\n");
+  const head = lines.filter((_, i) => chosen.has(i)).join('\n');
   const out = `<<<HEAD (scored lines)>>>\n${head}\n<<<TAIL (fresh context)>>>\n${tail}`;
 
   return {

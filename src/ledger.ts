@@ -1,4 +1,4 @@
-import { KVStore } from "./store.js";
+import { KVStore } from './store.js';
 
 export interface LedgerEvent {
   ts: string;
@@ -12,14 +12,14 @@ export interface LedgerEvent {
 export class Ledger {
   constructor(private store: KVStore) {}
 
-  async add(ev: Omit<LedgerEvent, "ts">): Promise<LedgerEvent> {
+  async add(ev: Omit<LedgerEvent, 'ts'>): Promise<LedgerEvent> {
     const data = await this.store.read();
     const raw = data.events;
     const events: LedgerEvent[] = Array.isArray(raw) ? (raw as LedgerEvent[]) : [];
     const full: LedgerEvent = { ...ev, ts: new Date().toISOString() };
     events.push(full);
     data.events = events.slice(-200);
-    const prev = typeof data.totalSavedTokens === "number" ? data.totalSavedTokens : 0;
+    const prev = typeof data.totalSavedTokens === 'number' ? data.totalSavedTokens : 0;
     data.totalSavedTokens = prev + ev.savedTokens;
     await this.store.write(data);
     return full;
@@ -29,7 +29,7 @@ export class Ledger {
     const data = await this.store.read();
     return {
       events: Array.isArray(data.events) ? (data.events as LedgerEvent[]) : [],
-      totalSavedTokens: typeof data.totalSavedTokens === "number" ? data.totalSavedTokens : 0,
+      totalSavedTokens: typeof data.totalSavedTokens === 'number' ? data.totalSavedTokens : 0,
     };
   }
 }
