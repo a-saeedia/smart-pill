@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { Ledger } from '../ledger.js';
 import { KVStore } from '../store.js';
-import { existsSync, unlinkSync } from 'node:fs';
+import { unlinkSync } from 'node:fs';
 
 const tmpFile = `${__dirname}/../.tmp-test-ledger.json`;
 
