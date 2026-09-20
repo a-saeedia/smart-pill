@@ -8,7 +8,12 @@ export interface RouteOptions {
   apiKey: string;
   timeoutMs?: number;
   maxTokens?: number;
+  /** OpenAI-compatible chat-completions endpoint. Defaults to OpenRouter. */
+  url?: string;
 }
+
+/** Default escalation endpoint; overridable via SMART_PILL_ROUTE_URL. */
+export const DEFAULT_ROUTE_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export type RouteResult =
   | { ok: true; content: string; model: string }
@@ -22,7 +27,7 @@ export async function chatCompletion(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 60_000);
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const res = await fetch(opts.url ?? DEFAULT_ROUTE_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

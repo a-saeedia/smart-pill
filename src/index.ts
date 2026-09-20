@@ -10,6 +10,7 @@ import { buildPlan } from "./plan.js";
 import { reviewText } from "./review.js";
 import { Ledger } from "./ledger.js";
 import { chatCompletion } from "./route.js";
+import { decideEscalation } from "./escalate.js";
 import { estimateTokens } from "./tokens.js";
 
 async function main(): Promise<void> {
@@ -20,7 +21,7 @@ async function main(): Promise<void> {
 
   const server = new McpServer({
     name: "smart-pill",
-    version: "0.4.0",
+    version: "0.5.0",
   });
 
   server.registerTool(
@@ -293,7 +294,7 @@ async function main(): Promise<void> {
       for (const e of events) byTool.set(e.tool, (byTool.get(e.tool) ?? 0) + 1);
       const topTools = [...byTool.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
       const routeLine = config.openRouterKey
-        ? `ARMED — escalations via ${config.routeModel}`
+        ? `ARMED — escalations via ${config.routeModel} (auto-threshold ${config.routeThreshold})`
         : "OFFLINE ADVISORY — no OPENROUTER_API_KEY (pill_route returns self-service prompts)";
       const text = [
         "<<<SMART-PILL BRIEFING>>>",
@@ -336,14 +337,17 @@ async function main(): Promise<void> {
       title: "Escalate to a big model",
       description:
         "Escalate the hard 10% of turns to a big model via OpenRouter (SMART_PILL_ROUTE_MODEL, default anthropic/claude-3.7-sonnet). Without OPENROUTER_API_KEY it returns a self-service advisory instead of failing.",
-      inputSchema: {
+       inputSchema: {
         prompt: z.string().min(1).describe("The hard question or task to escalate"),
         system: z.string().optional().describe("Optional system prompt for the big model"),
+        force: z.boolean().optional().describe("Force escalation regardless of heuristic score"),
       },
     },
-    async ({ prompt, system }) => {
+    async ({ prompt, system, force }) => {
+      const verdict = decideEscalation(prompt, { force });
       if (!config.openRouterKey) {
         const advice = `No OPENROUTER_API_KEY configured — smart-pill cannot escalate to a big model.
+Escalation heuristic score: ${verdict.score}/${verdict.threshold} (${verdict.escalate ? "ESCALATE" : "skip"}).
 Self-service prompt for the free model:
 ---
 ${prompt}
@@ -353,9 +357,18 @@ Work it yourself: write the plan (pill_plan), implement the smallest change, ver
           tool: "pill_route",
           inputTokens: estimateTokens(prompt),
           savedTokens: 0,
-          note: "advisory (no key)",
+          note: `advisory (no key) score=${verdict.score}`,
         });
         return { content: [{ type: "text" as const, text: advice }] };
+      }
+      if (!verdict.escalate && !force) {
+        await ledger.add({
+          tool: "pill_route",
+          inputTokens: estimateTokens(prompt),
+          savedTokens: estimateTokens(prompt),
+          note: `skipped (score ${verdict.score} < ${verdict.threshold})`,
+        });
+        return { content: [{ type: "text" as const, text: `Skipped escalation (score ${verdict.score} < ${verdict.threshold}). Use force:true to override.` }] };
       }
       const res = await chatCompletion(
         [
@@ -386,7 +399,7 @@ Work it yourself: write the plan (pill_plan), implement the smallest change, ver
         tool: "pill_route",
         inputTokens: estimateTokens(prompt),
         savedTokens: 0,
-        note: `escalated to ${res.model}`,
+        note: `escalated to ${res.model} (force=${force ?? false})`,
       });
       return { content: [{ type: "text" as const, text: res.content }] };
     },
