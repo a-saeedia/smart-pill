@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-25
+
+### Added
+
+- ci: trusted publishing (OIDC) release workflow — no npm token, no OTP
+
 ## [0.5.0] - 2026-09-19
 
 ### Added
