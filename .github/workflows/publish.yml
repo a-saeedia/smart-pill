@@ -20,6 +20,7 @@ name: Publish to npm (trusted publishing)
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch: # manual re-run (re-publish attempt) without a new tag
 
 permissions:
   contents: read
@@ -56,4 +57,19 @@ jobs:
 
       - name: Publish to npm
         if: steps.check.outputs.exists == 'false'
-        run: npm publish
+        run: |
+          set +e
+          npm publish 2>&1 | tee publish.log
+          code=${PIPESTATUS[0]}
+          # Surface npm's real error as annotations (readable from the API
+          # without a GitHub token) so a failed release is diagnosable
+          # instead of just "exit code 1".
+          if [ "$code" -ne 0 ]; then
+            echo "::group::npm publish failed (exit $code)"
+            tail -n 40 publish.log
+            echo "::endgroup::"
+            tail -n 40 publish.log | while IFS= read -r line; do
+              echo "::error::$(echo "$line" | head -c 900)"
+            done
+          fi
+          exit $code
