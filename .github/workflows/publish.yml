@@ -1,0 +1,59 @@
+﻿# Publish smart-pill to npm via trusted publishing (OIDC).
+#
+# Auth: no token anywhere. At publish time GitHub mints a short-lived OIDC
+# claim (job permission `id-token: write`) and npm exchanges it for a
+# temporary publish credential because THIS repo + workflow FILE are
+# registered as a trusted publisher on npmjs.com.
+#
+# Gotchas (documented; npm 11.5.1+ requirement):
+# - Node 24 ships npm 11 (OIDC-capable). Node 22 ships npm 10, which
+#   silently cannot do the OIDC exchange. Do NOT downgrade this.
+# - Never add `registry-url` to setup-node here: it makes setup-node mint a
+#   NODE_AUTH_TOKEN (GITHUB_TOKEN), and ANY token present — even an empty
+#   string — makes npm use it instead of falling back to OIDC.
+# - Renaming/moving this file revokes the npm-side trust until the trusted
+#   publisher is re-registered to match.
+# - Provenance attestations are generated automatically by trusted publishing.
+
+name: Publish to npm (trusted publishing)
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write # the OIDC claim that authenticates this run to npm
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24" # ships npm 11.5.1+ (OIDC requirement)
+          # NO registry-url / NO cache here — see header comment.
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Check if version is already published
+        id: check
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "smart-pill@${VERSION}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.check.outputs.exists == 'false'
+        run: npm publish
