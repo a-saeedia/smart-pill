@@ -44,6 +44,32 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Preflight — OIDC preconditions
+        run: |
+          set -euo pipefail
+          echo "node=$(node --version)"
+          echo "npm=$(npm --version)"
+          # npm only performs the OIDC exchange on 11.5.1+. Below that it
+          # silently degrades to ENEEDAUTH with a misleading "log in" message.
+          NPMV="$(npm --version)"
+          if [ "$(printf '%s\n11.5.1\n' "$NPMV" | sort -V | head -n1)" != "11.5.1" ]; then
+            echo "::error::npm $NPMV is too old for trusted publishing (need >= 11.5.1)"
+          fi
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
+            echo "::error::no OIDC endpoint in env — job is missing 'id-token: write'"
+            exit 1
+          fi
+          echo "oidc_endpoint=present"
+          OID="$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org")"
+          node -e '
+            const p = process.argv[1].split(".")[1];
+            const c = JSON.parse(Buffer.from(p, "base64url").toString());
+            console.log("claim.aud=" + c.aud);
+            console.log("claim.job_workflow_ref=" + c.job_workflow_ref);
+            console.log("claim.repository=" + c.repository + "/" + (c.repository_owner || ""));
+          ' "$OID"
+
       - name: Check if version is already published
         id: check
         run: |
