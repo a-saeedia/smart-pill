@@ -64,12 +64,18 @@ jobs:
           # Surface npm's real error as annotations (readable from the API
           # without a GitHub token) so a failed release is diagnosable
           # instead of just "exit code 1".
+          # NOTE: GitHub only displays the FIRST 10 annotations per step, so
+          # error lines must come first — npm notice file listings are noise.
           if [ "$code" -ne 0 ]; then
-            echo "::group::npm publish failed (exit $code)"
-            tail -n 40 publish.log
-            echo "::endgroup::"
-            tail -n 40 publish.log | while IFS= read -r line; do
-              echo "::error::$(echo "$line" | head -c 900)"
-            done
+            {
+              echo "npm publish FAILED (exit $code)"
+              grep -iE 'npm (error|ERR!)|E[0-9]{3}|denied|unauthor|forbidden|provenance|permission' publish.log | head -n 8
+              echo "--- tail ---"
+              tail -n 4 publish.log
+            } > summary.txt
+            cat summary.txt >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r line; do
+              echo "::error::$(echo "$line" | head -c 800)"
+            done < summary.txt
           fi
           exit $code
